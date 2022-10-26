@@ -1,0 +1,108 @@
+<html>
+
+<head>
+</head>
+
+<body>
+
+        <div></div>
+
+        <script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@aspnet/signalr@1.0.3/dist/browser/signalr.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/axios@0.18.0/dist/axios.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/crypto-js@3.1.9-1/crypto-js.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/crypto-js@3.1.9-1/enc-base64.js"></script>
+        <script>
+            const data = {
+                username: '',
+                defaultgroup: 'XiaomiTemperatureMijia_A4:C1:38:0C:10:22',
+                checked: false,
+                newMessage: '',
+                messages: [],
+                myConnectionId: '',
+                ready: false
+            };
+
+            const apiBaseUrl = window.location.origin;
+            data.username = "john";
+
+            var connection = null;
+            if (!data.username) {
+                alert("No username entered. Reload page and try again.");
+                throw "No username entered";
+            }
+            getConnectionInfo().then(info => {
+                // make compatible with old and new SignalRConnectionInfo
+                info.accessToken = info.AccessToken || info.accessKey; // pay attention to the case
+                info.url = info.Url || info.endpoint; // pay attention to the case
+                data.ready = true;
+                const options = {
+                    accessTokenFactory: () => info.accessToken
+                };
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl(info.url, options)
+                    .configureLogging(signalR.LogLevel.Information)
+                    .build();
+
+                connection.on('newMessage', onNewMessage);
+                connection.on('newConnection', onNewConnection)
+                connection.onclose(() => console.log('disconnected'));
+                console.log('connecting...');
+                connection.start()
+                    .then(() => {
+                        data.ready = true;
+                        console.log('started!');
+                    })
+                    .catch(console.error);
+            }).catch(alert);
+            function getConnectionInfo() {
+                return axios.post(`${apiBaseUrl}/api/negotiate?userid=${data.username}`, null, null)
+                    .then(resp => resp.data);
+            }
+            let counter = 0;
+            function onNewMessage(message) {
+                console.log(message)
+                message.id = counter++; // vue transitions need an id
+                data.messages.unshift(message);
+            };
+            function onNewConnection(message) {
+                data.myConnectionId = message.ConnectionId;
+                authEnabled = false;
+                if (message.Authentication) {
+                    authEnabled = true;
+                }
+                newConnectionMessage = {
+                    id: counter++,
+                    text: `${message.ConnectionId} has connected`
+                };
+                data.messages.unshift(newConnectionMessage);
+
+                console.log('connected!');
+                console.log(data.myConnectionId);
+                connection.invoke("RegisterToDevice", data.myConnectionId, data.defaultgroup);
+                connection.invoke("RegisterToDeviceHistory", data.myConnectionId, data.defaultgroup);
+
+                axios.get(`${apiBaseUrl}/api/history/${data.defaultgroup}/2022-09-0-4:12:09:00`, null, null)
+                .then(resp => {
+                        console.log("history data");
+                        console.log(resp.data);
+                    });
+            }
+
+            function base64url(source) {
+                // Encode in classical base64
+                encodedSource = CryptoJS.enc.Base64.stringify(source);
+
+                // Remove padding equal characters
+                encodedSource = encodedSource.replace(/=+$/, '');
+
+                // Replace characters according to base64url specifications
+                encodedSource = encodedSource.replace(/\+/g, '-');
+                encodedSource = encodedSource.replace(/\//g, '_');
+
+                return encodedSource;
+            }
+        </script>
+</body>
+
+</html>
