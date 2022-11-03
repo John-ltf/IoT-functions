@@ -156,7 +156,8 @@ namespace IoTTelemetryData
         [SignalROutput(HubName = "HubLiveData")]
         public SignalRMessageAction OnLiveConnected([SignalRTrigger("HubLiveData", "connections", "connected")] SignalRInvocationContext invocationContext)
         {
-            invocationContext.Headers.TryGetValue("Authorization", out var auth);
+            _logger.LogInformation("Try to connect");
+            invocationContext.Headers.TryGetValue("X-MS-CLIENT-PRINCIPAL-ID", out var auth);
             _logger.LogInformation($"{invocationContext.ConnectionId} has connected");
             return new SignalRMessageAction("newConnection")
             {
@@ -243,7 +244,7 @@ namespace IoTTelemetryData
         [SignalROutput(HubName = "HubHistory")]
         public SignalRMessageAction OnHistoryConnected([SignalRTrigger("HubHistory", "connections", "connected")] SignalRInvocationContext invocationContext)
         {
-            invocationContext.Headers.TryGetValue("Authorization", out var auth);
+            invocationContext.Headers.TryGetValue("X-MS-CLIENT-PRINCIPAL-ID", out var auth);
             _logger.LogInformation($"{invocationContext.ConnectionId} has connected");
             return new SignalRMessageAction("newConnection")
             {
